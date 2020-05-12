@@ -37,7 +37,6 @@ class GsmCipher {
             clock();
         }
     }
-    int a = 313;
     int maj() {//функция большинства
         int a = (R1 >> 8) & 1,
             b = (R2 >> 10) & 1,
