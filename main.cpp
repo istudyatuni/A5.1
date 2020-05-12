@@ -20,7 +20,6 @@ class GsmCipher {
     word R3OUT = 0x400000;//22-th bit
     int64 key;
     word iv;
-    int64 stream[2];//gamma
     void initRegisters() {
         R1 = R2 = R3 = 0;
         int keybit, ivbit;
@@ -52,7 +51,7 @@ class GsmCipher {
             a >>= 1;
         }
         //sum of bits modulo 2
-        return (r + 1)%2;
+        return r%2;
     }
     void clock() {
         int m = maj();
@@ -73,31 +72,20 @@ class GsmCipher {
         clockone(R2, R2MASK, R2TAPS);
         clockone(R3, R3MASK, R3TAPS);
     }
-    int getbit() {
+    int64 getbit() {
         return parity(R1&R1OUT)^parity(R2&R2OUT)^parity(R3&R3OUT);
     }
-    void keygen() {
-        for (int i = 0; i < 114/2; ++i) {
-            clock();
-            stream[1] |= getbit() << i;
-        }
-        for (int i = 0; i < 114/2; ++i) {
-            clock();
-            stream[0] |= getbit() << i;
-        }
-    }
 public:
-    GsmCipher(int64 key, word iv):key(key), iv(iv) {
+    GsmCipher(int64 key, word iv):key(key), iv(iv){}
+    void crypt(int64& text) {
+        //maybe if encrypting big massive,
+        //set initReg in constructor
         initRegisters();
-    }
-    void crypt(int64 text[]) {
-        keygen();
-        for (int i = 0; i < 114/2; ++i) {
-            /* code */
+        for (unsigned long i = 0; i < sizeof(text) * 8; ++i) {
+            clock();
+            //be careful: getbit returns just 64-bit word
+            text ^= getbit() << i;
         }
-    }
-    void printstream() {
-        cout << stream[0] << stream[1];
     }
 };
 
@@ -106,9 +94,11 @@ int main() {
     int64 key = 0x1223456789abcdef;
     word iv = 0x134;//initial value, frame
     GsmCipher a(key, iv);
-    int64 test[2] = {0x5238ef3a32b98cf2, 0x267ec9ab329ed923};
+    int64 test = 0x5238ef3a32b98cf2;
+    cout << "plain text    = " << test << '\n';
     a.crypt(test);
     cout << "encrypted msg = " << test << '\n';
-    a.printstream();
+    a.crypt(test);
+    cout << "decrypted msg = " << test << '\n';
     return 0;
 }
