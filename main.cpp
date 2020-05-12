@@ -14,9 +14,13 @@ class GsmCipher {
     word R3TAPS = 0x700080; //bits 22,21,20,7
     word R1MID = 0x100;//8 bit
     word R2MID = 0x400;//10 bit
-    word R3MID = 0x400;
+    word R3MID = 0x400;//10 bit
+    word R1OUT = 0x40000;//18-th bit
+    word R2OUT = 0x200000;//21-th bit
+    word R3OUT = 0x400000;//22-th bit
     int64 key;
     word iv;
+    int64 stream[2];//gamma
     void initRegisters() {
         R1 = R2 = R3 = 0;
         int keybit, ivbit;
@@ -30,7 +34,11 @@ class GsmCipher {
             ivbit = (iv >> i) & 1; //i-th bit of iv
             R1 ^= ivbit; R2 ^= ivbit; R3 ^= ivbit;
         }
+        for (int i = 0; i < 100; ++i) {
+            clock();
+        }
     }
+    int a = 313;
     int maj() {//функция большинства
         int a = (R1 >> 8) & 1,
             b = (R2 >> 10) & 1,
@@ -65,9 +73,31 @@ class GsmCipher {
         clockone(R2, R2MASK, R2TAPS);
         clockone(R3, R3MASK, R3TAPS);
     }
+    int getbit() {
+        return parity(R1&R1OUT)^parity(R2&R2OUT)^parity(R3&R3OUT);
+    }
+    void keygen() {
+        for (int i = 0; i < 114/2; ++i) {
+            clock();
+            stream[1] |= getbit() << i;
+        }
+        for (int i = 0; i < 114/2; ++i) {
+            clock();
+            stream[0] |= getbit() << i;
+        }
+    }
 public:
     GsmCipher(int64 key, word iv):key(key), iv(iv) {
         initRegisters();
+    }
+    void crypt(int64 text[]) {
+        keygen();
+        for (int i = 0; i < 114/2; ++i) {
+            /* code */
+        }
+    }
+    void printstream() {
+        cout << stream[0] << stream[1];
     }
 };
 
@@ -76,5 +106,9 @@ int main() {
     int64 key = 0x1223456789abcdef;
     word iv = 0x134;//initial value, frame
     GsmCipher a(key, iv);
+    int64 test[2] = {0x5238ef3a32b98cf2, 0x267ec9ab329ed923};
+    a.crypt(test);
+    cout << "encrypted msg = " << test << '\n';
+    a.printstream();
     return 0;
 }
